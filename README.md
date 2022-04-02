@@ -33,12 +33,11 @@ If the H10 is paired with some other device (such as your phone or watch), you m
 
 The H10 seems to advertise its presence even when it's not being worn, but seems to refuse connections until it detects skin contact.
 
-The ECG data is not present in the standard GATT profile and is specific to Polar. It uses a Service and Characteristics Polar Measurement Data (PMD) Specification document, which is available as a PDF in the Polar BLE SDK repository on GitHub.
+The ECG data is not present in the standard GATT profile and is specific to Polar. It uses a Service and Characteristics described in the Polar Measurement Data (PMD) Specification document, which is available as a PDF in the Polar BLE SDK repository on GitHub.
 
 read_gatt_char means read a Characteristic, not a *character*.
 
 There are no spec pages for querying or setting stream settings or starting a stream, but the document contains examples of doing these things for Acceleration, ECG, and PPG streams with embedded explanations of the bytes in the messages.
-
 
 A tool called Bluetility can be used on MacOS to browse the characteristics of nearby bluetooth devices.
 

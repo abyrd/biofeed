@@ -112,12 +112,26 @@ def detection_callback(device, advertisement_data):
 ## which I think is not actually supported on the H10, but is identically structured to
 ## the GATT heart rate service (except that the latter has a flags field at the beginning)
 def convert_hr_data(sender, data):
-    ## Flags 0-3 are false, flag 4 (R-R interval) is true.
-    ## This means we get an 8-bit heart rate followed by a 16-bit R-R interval
+    # See BLUETOOTH SERVICE SPECIFICATION for the Heart Rate Service (Document ID: HRS_SPEC)
+    # Flags 0-3 are false, flag 4 (R-R interval) is true.
+    # This means we get an 8-bit heart rate followed by a 16-bit R-R interval
     if data[0] == 0x16:
         print("rate:", data[1])
         print("interval:", convert_array_to_signed_int(data, 2, 2))
     
+class GattHeartRate:
+    def __init__(self, bytes):
+        # Read bitfield describing how heart rate data are encoded.
+        byte = bytes[1]
+        self.wide_int = flag(byte, 0); # unsigned 16 bit instead of u8
+        self.skin_contact_sensor = flag(byte, 1);
+        self.skin_contact_detected = flag(byte, 2);
+        self.energy_expended = flag(byte, 3);
+        self.r_r_interval = flag(byte, 4);
+        # flag bits 5-7 unused
+        # next is heart rate field, then energy field, then r-r interval field
+
+            
 async def callbackScan():
     scanner = BleakScanner()
     scanner.register_detection_callback(detection_callback)
