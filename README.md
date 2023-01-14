@@ -1,6 +1,6 @@
 # Biofeed
 
-## IP rebroadcast of heart rate data received over bluetooth
+## UDP rebroadcast of Bluetooth heart rate sensor data
 
 This is a basic example of interfacing with a bluetooth single-lead ECG device (heart rate monitor). The data received are rebroadcast over UDP for consumption by other devices on the same IP network. My intended use case is in biofeedback experiments. Specifically, I intend to create plugins that read this stream and produce modulation signals for a modular synthesizer.
 

@@ -11,18 +11,15 @@ from bleak.uuids import uuid16_dict
 import matplotlib.pyplot as plt
 import matplotlib
 
-""" Predefined UUID (Universal Unique Identifier) mapping are based on Heart Rate GATT service Protocol that most
-Fitness/Heart Rate device manufacturer follow (Polar H10 in this case) to obtain a specific response input from
-the device acting as an API """
+# Original source for Bluetooth connection process:
+# https://towardsdatascience.com/creating-a-data-stream-with-polar-device-a5c93c9ccc59
+# This article has disappeared but some of the original source appears to be preserved at
+# https://github.com/markspan/PolarBand2lsl which similarly rebroadcasts data as Lab Streaming Layer (LSL) data.
 
-## Source: https://towardsdatascience.com/creating-a-data-stream-with-polar-device-a5c93c9ccc59
+# Most fitness / heart rate device manufacturers follow the Bluetooth Low Energy Heart Rate GATT service Protocol
 
 ## UUID mapping
 uuid16_dict = {v: k for k, v in uuid16_dict.items()}
-
-## This is the device MAC ID, please update with your device ID (of what, the H10?)
-## Apparently on MacOS this has to be a UUID not a MAC address
-ADDRESS = "D4:52:48:88:EA:04"
 
 # Polar Measurement Data (PMD) Service and Characteristics
 # See "Polar Measurement Data Specification for 3rd Party"
@@ -55,7 +52,7 @@ BATTERY_LEVEL_UUID = TEMPLATE.format(uuid16_dict.get("Battery Level"))
 ## UUID for Request of ECG Stream ##
 ECG_WRITE = bytearray([0x02, 0x00, 0x00, 0x01, 0x82, 0x00, 0x01, 0x01, 0x0E, 0x00])
 
-# Plolar H10  sampling frequency (check SDK code for other valid values)
+# Polar H10  sampling frequency (check SDK code for other valid values)
 ECG_SAMPLING_FREQ = 130
 
 def flag(byte, n):
@@ -118,20 +115,39 @@ def convert_hr_data(sender, data):
     if data[0] == 0x16:
         print("rate:", data[1])
         print("interval:", convert_array_to_signed_int(data, 2, 2))
-    
+
+
+# After the flags, next is heart rate field, then energy field, then repeated r-r interval field.
+# H10 seems to always send heart rate and r-r interval, not energy.
+# The heart rate field is 1 byte, followed by a variable length array of 2-byte r-r intervals.
+# "Since bytes objects are sequences of integers (akin to a tuple), for a bytes object b, b[0] will be an
+# integer, while b[0:1] will be a bytes object of length 1."
+# For converting bytes to integers, we've got int.from_bytes() and the struct module.
 class GattHeartRate:
     def __init__(self, bytes):
+        flags = GattHeartRateFlags(bytes[0])
+        self.heart_rate = bytes[1] # One byte for heart rate, extracted by simple indexing
+        self.rr_intervals = []
+        for i in range(2, len(bytes), 2):
+            self.rr_intervals.append(int.from_bytes(bytes[i:i+2], 'little'))
+        self.flags = flags # added to self last to keep at the end of the __repr__
+    def __repr__(self):
+        return str(self.__dict__)
+
+class GattHeartRateFlags:
+    def __init__(self, byte):
         # Read bitfield describing how heart rate data are encoded.
-        byte = bytes[1]
+        # This should be located in the first byte of the data received.
         self.wide_int = flag(byte, 0); # unsigned 16 bit instead of u8
         self.skin_contact_sensor = flag(byte, 1);
         self.skin_contact_detected = flag(byte, 2);
         self.energy_expended = flag(byte, 3);
         self.r_r_interval = flag(byte, 4);
         # flag bits 5-7 unused
-        # next is heart rate field, then energy field, then r-r interval field
+    def __repr__(self):
+        return str(self.__dict__)
 
-            
+# Scan for available BLE devices and print a list of them to the console
 async def callbackScan():
     scanner = BleakScanner()
     scanner.register_detection_callback(detection_callback)
@@ -141,18 +157,23 @@ async def callbackScan():
     for d in scanner.discovered_devices:
         print(d)
 
-H10_ADDRESS = "5C92E382-43DC-466E-ADD3-71C1B196E41D"
-
-async def scanPrint():
+# Scan and return the device ID of the H10 sensor. Often described as a MAC address (which would be permanent),
+# but apparently on MacOS this has to be a UUID not a MAC address, and that UUID changes so must be detected.
+async def scanForAddress():
     print("Scanning for Polar H10...")
     devices = await BleakScanner.discover()
     address = None
     rssi = -90
     for device in devices:
-        if device.name.startswith("Polar H10") and device.rssi > rssi:            
+        print(device)
+        if device.name.startswith("Polar H10") and device.rssi > rssi:
             address = device.address
             rssi = device.rssi
     print("Address of H10:", address)
+    return address
+
+async def scanPrint():
+    address = await scanForAddress()
     async with BleakClient(address) as client:
         model_number = await client.read_gatt_char(MODEL_NBR_UUID)
         manufacturer = await client.read_gatt_char(MANUFACTURER_NAME_UUID)
@@ -163,27 +184,45 @@ async def scanPrint():
 
 # asyncio.run(scanPrint())
 
-## UUID for heart rate
-##https://stackoverflow.com/questions/69977624/how-do-i-find-out-which-uuid-i-should-use-to-request-data-from-my-polar-h10-sens
-## also
-##https://stackoverflow.com/questions/52970763/trying-to-get-heart-rate-variability-from-polar-h10-bluetooth-low-energy-sample
-## These are standard bluetooth heart rate items, see bluetooth docs.
+# UUID for heart rate
+# https://stackoverflow.com/questions/69977624/how-do-i-find-out-which-uuid-i-should-use-to-request-data-from-my-polar-h10-sens
+# also
+# https://stackoverflow.com/questions/52970763/trying-to-get-heart-rate-variability-from-polar-h10-bluetooth-low-energy-sample
+# These are standard bluetooth heart rate items, see bluetooth docs.
 
-## GATT Characteristic and Object Type 0x2A37 is "Heart Rate Measurement"
+# GATT Characteristic and Object Type 0x2A37 is "Heart Rate Measurement"
 HR_UUID = TEMPLATE.format(0x2A37)
-## Bluetooth assigned UUID document also specifies GATT service 0x180D which yields "characteristic not found"
+# Bluetooth assigned UUID document also specifies GATT service 0x180D which yields "characteristic not found"
 
-## ECG data is a PMD_DATA stream.
-## Heart Rate and RR interval are apparently not available as PMD_DATA streams on the H10, 
-## despite what the PDF docs say.
+# ECG data is a PMD_DATA stream.
+# Heart Rate and RR interval are apparently not available as PMD_DATA streams on the H10,
+# despite what the PDF docs say.
 
-## https://github.com/hbldh/bleak/issues/786 implies there is some problem 
-## with write_gatt_char but I haven't seen it. NOTE that issue contains a great "minimum working example"
+# https://github.com/hbldh/bleak/issues/786 implies there is some problem
+# with write_gatt_char but I haven't seen it. NOTE that issue contains a great "minimum working example"
+
+# Define UDP heart rate reporting callback
+# Check output with netcat: nc -u -l 5005
+import socket
+UDP_IP = "127.0.0.1"
+UDP_PORT = 5005
+udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def send_hr_data_udp(sender: int, data: bytearray):
+    print
+    print('Received heart rate notification:', data.hex('-', 1))
+    hr = GattHeartRate(data)
+    print('Decoded data:', hr)
+    # H10 seems to always send flag bits 0-3 off, flag bit 1 on.
+    if data[0] == 0x10:
+        print('sending heart rate {} and r-r intervals {} to UDP {}:{}'.format(hr.heart_rate, hr.rr_intervals, UDP_IP, UDP_PORT))
+        hr_and_rr_bytes = data[1:]
+        udp_socket.sendto(hr_and_rr_bytes, (UDP_IP, UDP_PORT)) # + b'\n'
 
 async def info():
-    # When we exit this scope it will close the client 
+    address = await scanForAddress()
+    # When we exit this scope it will close the client
     # (though confusingly the variable doesn't go out of scope)
-    async with BleakClient(H10_ADDRESS) as client:
+    async with BleakClient(address) as client:
         services = await client.get_services()
         print("Available services:")
         for service in services:
@@ -197,16 +236,21 @@ async def info():
         att_read = await client.read_gatt_char(PMD_CONTROL)
         print("Polar Measurement Data features:", vars(PolarFeatures(att_read)))
         await client.write_gatt_char(PMD_CONTROL,  ECG_WRITE)
-        ## Request notifications of ECG stream
+        # Request notifications of ECG stream
         await client.start_notify(PMD_DATA, convert_ecg_data)
-        ## Also start a heart rate notification stream
-        await client.start_notify(HR_UUID, convert_hr_data)
-        await asyncio.sleep(5.0)
+        # Also start a heart rate notification stream
+        # await client.start_notify(HR_UUID, convert_hr_data)
+        await client.start_notify(HR_UUID, send_hr_data_udp)
+        await asyncio.sleep(60.0)
         await client.stop_notify(PMD_DATA)
         await client.stop_notify(HR_UUID)
         await client.disconnect()
 
+# First scan for the H10 and get its MacOS UUID
+# You may have to run this multiple times, as the H10 seems to announce infrequently
+# asyncio.run(scanPrint())
 
+# Then set up callbacks for each time it sends a heart rate notification
 asyncio.run(info())
+
 #asyncio.run(callbackScan())
-#asyncio.run(scanPrint())
