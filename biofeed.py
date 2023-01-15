@@ -201,22 +201,44 @@ HR_UUID = TEMPLATE.format(0x2A37)
 # https://github.com/hbldh/bleak/issues/786 implies there is some problem
 # with write_gatt_char but I haven't seen it. NOTE that issue contains a great "minimum working example"
 
+
 # Define UDP heart rate reporting callback
 # Check output with netcat: nc -u -l 5005
 import socket
-UDP_IP = "127.0.0.1"
-UDP_PORT = 5005
-udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+OSC_IP = '127.0.0.1' # "192.168.1.122"
+OSC_PORT = 5005
+osc_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+# Given a Python str, return the bytes of the equivalent OSC string.
+# Encode it as ASCII bytes with 1-4 zero bytes at the end.
+# An OSC-string is a sequence of non-null ASCII characters followed by a null, followed by 0-3 additional null
+# characters to make the total number of bits a multiple of 32.
+def osc_string(s: str):
+    asc = s.encode('ascii')
+    padding = 4 - (len(asc) % 4)
+    return asc + (b'\0' * padding)
+
+# An OSC message consists of an OSC Address Pattern followed by an OSC Type Tag String followed by zero or more
+# OSC Arguments. An OSC Address Pattern is an OSC-string beginning with the character ‘/’ (forward slash).
+# An OSC Type Tag String is an OSC-string beginning with the character ‘,’ (comma) followed by a sequence of characters
+# corresponding exactly to the sequence of OSC Arguments in the given message.
+# OSC Type Tag i corresponds to type int32, a 32-bit big-endian signed (two’s complement) integer.
+def send_osc_int(address_pattern: str, value: int):
+    message_bytes = osc_string(address_pattern) + osc_string(',i') + value.to_bytes(4, 'big', signed=True)
+    osc_udp_socket.sendto(message_bytes, (OSC_IP, OSC_PORT))
+    print(address_pattern, value)
+
 def send_hr_data_udp(sender: int, data: bytearray):
-    print
     print('Received heart rate notification:', data.hex('-', 1))
     hr = GattHeartRate(data)
     print('Decoded data:', hr)
     # H10 seems to always send flag bits 0-3 off, flag bit 1 on.
     if data[0] == 0x10:
-        print('sending heart rate {} and r-r intervals {} to UDP {}:{}'.format(hr.heart_rate, hr.rr_intervals, UDP_IP, UDP_PORT))
-        hr_and_rr_bytes = data[1:]
-        udp_socket.sendto(hr_and_rr_bytes, (UDP_IP, UDP_PORT)) # + b'\n'
+        print('Sending heart rate {} and r-r intervals {} to UDP {}:{}'.format(hr.heart_rate, hr.rr_intervals, OSC_IP, OSC_PORT))
+        # hr_and_rr_bytes = data[1:]
+        send_osc_int('/h10/hr', hr.heart_rate)
+        for rr in hr.rr_intervals:
+            send_osc_int('/h10/rr', rr)
 
 async def info():
     address = await scanForAddress()

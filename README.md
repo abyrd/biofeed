@@ -1,8 +1,18 @@
 # Biofeed
 
-## UDP rebroadcast of Bluetooth heart rate sensor data
+## Rebroadcast Bluetooth heart rate sensor data as UDP Open Sound Control (OSC) messages
 
-This is a basic example of interfacing with a bluetooth single-lead ECG device (heart rate monitor). The data received are rebroadcast over UDP for consumption by other devices on the same IP network. My intended use case is in biofeedback experiments. Specifically, I intend to create plugins that read this stream and produce modulation signals for a modular synthesizer.
+This Python script interfaces with a bluetooth single-lead ECG device (heart rate monitor) and rebroadcasts the data over UDP for consumption by other devices on the same IP network. The intended use case is in biofeedback experiments where this stream is used to produce modulation signals for synthesizer patches. This also serves as a place to collect code fragments, notes, and examples on Bluetooth and OSC messaging.
+
+# Interfacing with Audio Software
+
+Rather than send packets with an ad hoc format such as raw bytes, the data are encoded as Open Sound Control messages[1], which are understood by software like Native Instruments Reaktor. 
+
+In Reaktor the OSC settings are located under the File menu. You must click the OSC Activate checkbox at the top of this settings window to begin receiving OSC messages. Although Reaktor displays the IP address of your network interface, it should also receive messages sent by this script on the loopback interface. The port should be set to 5005. Once this is set up, you can add a module to your patch: Built-in Modules -> OSC -> OSC Receive. In the Connect tab of that module, you can select `/h10/hr` for heart rate in BPM or `/h10/rr` for ECG R-R intervals.
+
+Unfortunately I do not yet have a way to get the data into the Bitwig Grid.
+
+# Interfacing with the Heart Rate Sensor
 
 I do not have much experience interfacing with Bluetooth devices, so rather than diving into platform-specific calls to OS Bluetooth services, I wanted to begin with a cross-platform library in Python. The code here was written for the Polar H10 because this is the device I have on hand. It has only been tested with this device, but certain aspects of the code should work with other heart rate devices.
 
@@ -21,7 +31,7 @@ Bluetooth Low Energy (BLE) is a completely separate standard from classic Blueto
 
 BLE has a data rate of 100kbit to 1Mbit per second. This is not sufficient for transmitting voice, but fine for many other purposes. It uses very little energy. Some devices like the H10 can run for one or two years on a single cell battery.
 
-BLE has several pairing procedures. Some devices Just Work (this is apparently the technical name), while others rely on passkey entry to flout Man In The Middle (MITM) attacks. The H10 seems to "just work". Connections begin in Security Mode 1, Level 1 (no authentication and no encryption) and can then be upgraded to any security level. [1]
+BLE has several pairing procedures. Some devices Just Work (this is apparently the technical name), while others rely on passkey entry to flout Man In The Middle (MITM) attacks. The H10 seems to "just work". Connections begin in Security Mode 1, Level 1 (no authentication and no encryption) and can then be upgraded to any security level.[2]
 
 A certain UUID range is reserved for GATT standard services. These are represented with four hex digits (a 16 bit integer), which are substituted into the first 32-bit section of the UUID (e.g. the service `ABCD` gives the UUID `0000ABCD-0000-1000-8000-00805f9b34fb`). All other pseudorandom UUIDs can be used by manufacturers for their own purposes. You shouldn't need to manually insert the 16 bit numbers into this standard UUID (as done in some example code). I'd expect the bluetooth library to do this for you.
 
@@ -45,7 +55,8 @@ A tool called Bluetility can be used on MacOS to browse the characteristics of n
 https://github.com/jnross/Bluetility/releases
 
 Sources:
-[1](https://medium.com/rtone-iot-security/deep-dive-into-bluetooth-le-security-d2301d640bfc) 
+[1](https://opensoundcontrol.stanford.edu/spec-1_0.html)
+[2](https://medium.com/rtone-iot-security/deep-dive-into-bluetooth-le-security-d2301d640bfc)
 - https://en.wikipedia.org/wiki/QRS_complex
 - https://en.wikipedia.org/wiki/Bluetooth_Low_Energy#Software_model 
 - [Polar BLE SDK on GitHub](https://github.com/polarofficial/polar-ble-sdk) This is only for mobile (iOS and Android) but may contain some clues in the source code and GitHub issues, and contains PDF reference docs.
