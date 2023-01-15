@@ -6,7 +6,7 @@ This Python script interfaces with a bluetooth single-lead ECG device (heart rat
 
 # Interfacing with Audio Software
 
-Rather than send packets with an ad hoc format such as raw bytes, the data are encoded as Open Sound Control messages[1], which are understood by software like Native Instruments Reaktor. 
+Rather than send packets with an ad hoc format such as raw bytes, the data are encoded as [Open Sound Control](https://opensoundcontrol.stanford.edu) messages, which are understood by software like Native Instruments Reaktor. 
 
 In Reaktor the OSC settings are located under the File menu. You must click the OSC Activate checkbox at the top of this settings window to begin receiving OSC messages. Although Reaktor displays the IP address of your network interface, it should also receive messages sent by this script on the loopback interface. The port should be set to 5005. Once this is set up, you can add a module to your patch: Built-in Modules -> OSC -> OSC Receive. In the Connect tab of that module, you can select `/h10/hr` for heart rate in BPM or `/h10/rr` for ECG R-R intervals.
 
@@ -31,7 +31,7 @@ Bluetooth Low Energy (BLE) is a completely separate standard from classic Blueto
 
 BLE has a data rate of 100kbit to 1Mbit per second. This is not sufficient for transmitting voice, but fine for many other purposes. It uses very little energy. Some devices like the H10 can run for one or two years on a single cell battery.
 
-BLE has several pairing procedures. Some devices Just Work (this is apparently the technical name), while others rely on passkey entry to flout Man In The Middle (MITM) attacks. The H10 seems to "just work". Connections begin in Security Mode 1, Level 1 (no authentication and no encryption) and can then be upgraded to any security level.[2]
+BLE has several pairing procedures. Some devices Just Work (this is apparently the technical name), while others rely on passkey entry to flout Man In The Middle (MITM) attacks. The H10 seems to "just work". Connections begin in Security Mode 1, Level 1 (no authentication and no encryption) and can then be upgraded to any security level. 
 
 A certain UUID range is reserved for GATT standard services. These are represented with four hex digits (a 16 bit integer), which are substituted into the first 32-bit section of the UUID (e.g. the service `ABCD` gives the UUID `0000ABCD-0000-1000-8000-00805f9b34fb`). All other pseudorandom UUIDs can be used by manufacturers for their own purposes. You shouldn't need to manually insert the 16 bit numbers into this standard UUID (as done in some example code). I'd expect the bluetooth library to do this for you.
 
@@ -55,8 +55,8 @@ A tool called Bluetility can be used on MacOS to browse the characteristics of n
 https://github.com/jnross/Bluetility/releases
 
 Sources:
-[1](https://opensoundcontrol.stanford.edu/spec-1_0.html)
-[2](https://medium.com/rtone-iot-security/deep-dive-into-bluetooth-le-security-d2301d640bfc)
+- https://opensoundcontrol.stanford.edu/spec-1_0.html
+- https://medium.com/rtone-iot-security/deep-dive-into-bluetooth-le-security-d2301d640bfc
 - https://en.wikipedia.org/wiki/QRS_complex
 - https://en.wikipedia.org/wiki/Bluetooth_Low_Energy#Software_model 
 - [Polar BLE SDK on GitHub](https://github.com/polarofficial/polar-ble-sdk) This is only for mobile (iOS and Android) but may contain some clues in the source code and GitHub issues, and contains PDF reference docs.
