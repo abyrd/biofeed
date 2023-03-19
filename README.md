@@ -4,6 +4,8 @@
 
 This Python script interfaces with a bluetooth single-lead ECG device (heart rate monitor) and rebroadcasts the data over UDP for consumption by other devices on the same IP network. The intended use case is in biofeedback experiments where this stream is used to produce modulation signals for synthesizer patches. This also serves as a place to collect code fragments, notes, and examples on Bluetooth and OSC messaging.
 
+![Photo by Richard R. Hewitt](https://user-images.githubusercontent.com/112871/226166385-7d16ca61-f061-4a8d-8034-4886a66d7ce8.jpg)
+
 # Interfacing with Audio Software
 
 Rather than send packets with an ad hoc format such as raw bytes, the data are encoded as [Open Sound Control](https://opensoundcontrol.stanford.edu) messages, which are understood by software like Native Instruments Reaktor. 
