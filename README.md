@@ -10,11 +10,11 @@ This Python script interfaces with a bluetooth single-lead ECG device (heart rat
 
 Rather than send packets with an ad hoc format such as raw bytes, the data are encoded as [Open Sound Control](https://opensoundcontrol.stanford.edu) messages, which are understood by software like Native Instruments Reaktor. 
 
-In Reaktor the OSC settings are located under the File menu. You must click the OSC Activate checkbox at the top of this settings window to begin receiving OSC messages. Although Reaktor displays the IP address of your network interface, it should also receive messages sent by this script on the loopback interface. The port should be set to 5005. Once this is set up, you can add a module to your patch: Built-in Modules -> OSC -> OSC Receive. In the Connect tab of that module, you can select `/h10/hr` for heart rate in BPM or `/h10/rr` for ECG R-R intervals.
+In Reaktor the OSC settings are located under the File menu. You must click the OSC Activate checkbox at the top of this settings window to begin receiving OSC messages. Although Reaktor displays the IP address of your network interface, it should also receive messages sent by this script on the loopback interface. The port should be set to 5005. Once this is set up, you can add a module to your patch: Built-in Modules -> OSC -> OSC Receive. In the Connect tab of that module, you can select `/h10/hr` for heart rate in BPM or `/h10/rr` for ECG R-R intervals. Integer R-R intervals are about 15 times more precise than integer heart rates, but you may want to invert the R-R-R values in a patch as these values decrease when heart rate increases. Both should be updated at about one-second intervals.
 
-Unfortunately I do not yet have a way to get the data into the Bitwig Grid.
+Unfortunately I have not yet identified a way to receive the data in the Bitwig Grid.
 
-It should be possible to receive messages in VCV rack using this module: https://github.com/j4s0n-c/trowaSoft-VCV#cvosccv.
+It should be possible to receive messages in VCV Rack using this module: https://github.com/j4s0n-c/trowaSoft-VCV#cvosccv.
 
 # Interfacing with the Heart Rate Sensor
 
