@@ -14,6 +14,8 @@ In Reaktor the OSC settings are located under the File menu. You must click the 
 
 Unfortunately I do not yet have a way to get the data into the Bitwig Grid.
 
+It should be possible to receive messages in VCV rack using this module: https://github.com/j4s0n-c/trowaSoft-VCV#cvosccv.
+
 # Interfacing with the Heart Rate Sensor
 
 I do not have much experience interfacing with Bluetooth devices, so rather than diving into platform-specific calls to OS Bluetooth services, I wanted to begin with a cross-platform library in Python. The code here was written for the Polar H10 because this is the device I have on hand. It has only been tested with this device, but certain aspects of the code should work with other heart rate devices.
